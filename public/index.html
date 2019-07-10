@@ -1,0 +1,253 @@
+<html>
+  <head>
+    <title>PHCC Azure AD B2C Authentication</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css"
+    />
+    <script
+      defer
+      src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"
+    ></script>
+  </head>
+
+  <body>
+    <!-- bluebird only needed if this page needs to run on Internet Explorer -->
+    <!-- msal.min.js can be used in the place of msal.js; included msal.js to make debug easy -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bluebird/3.3.4/bluebird.min.js"></script>
+    <script src="https://secure.aadcdn.microsoftonline-p.com/lib/1.0.0/js/msal.js"></script>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+
+    <section class="hero is-link is-fullheight">
+      <!-- Hero head: will stick at the top -->
+      <div class="hero-head">
+        <header class="navbar">
+          <div class="container">
+            <div class="navbar-brand">
+              <a>
+                <img
+                  style="padding-top: 10px;"
+                  src="https://www.phcc.qa/portal_new/admin/images/logo.png"
+                  alt="PHCC Logo"
+                  width="330"
+                  height="130"
+                />
+              </a>
+              <span class="navbar-burger burger" data-target="navbarMenuHeroC">
+                <span></span>
+                <span></span>
+                <span></span>
+              </span>
+            </div>
+            <div id="navbarMenuHeroC" class="navbar-menu">
+              <div class="navbar-end">
+                <a class="navbar-item is-active">
+                  Home
+                </a>
+                <a id="label" class="navbar-item"> </a>
+              </div>
+            </div>
+          </div>
+        </header>
+      </div>
+
+      <!-- Hero content: will be in the middle -->
+      <div class="hero-body">
+        <div class="container has-text-centered">
+          <h1 class="title">
+            PHCC Azure AD B2C Authentication
+          </h1>
+          <h2 class="subtitle">
+            Sign-in with Microsoft Azure AD B2C
+          </h2>
+          <div class="columns">
+            <div class="column">
+              <a class="button is-info is-medium" id="auth" onclick="login()"
+                >Sign In</a
+              >
+              <a
+                id="signup"
+                class="button is-success is-medium"
+                id="auth"
+                onclick="login()"
+                >Sign Up</a
+              >
+            </div>
+          </div>
+          <div class="columns">
+            <div class="column">
+              <a
+                class="button is-info is-hidden is-medium"
+                id="callApiButton"
+                onclick="callApi()"
+                >Call Web API</a
+              >
+            </div>
+          </div>
+          <div class="columns">
+            <div class="column"><div class="response"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hero footer: will stick at the bottom -->
+      <div class="hero-foot">
+        <nav class="tabs is-boxed is-fullwidth">
+          <div class="container">
+            <ul>
+              <li class="has-background-primary">
+                <a>Corporate Profile</a>
+              </li>
+              <li class="has-background-success">
+                <a>News</a>
+              </li>
+              <li class="has-background-info">
+                <a>Events</a>
+              </li>
+
+              <li class="has-background-grey">
+                <a>About</a>
+              </li>
+              <li class="has-background-primary">
+                <a>Contact Us</a>
+              </li>
+            </ul>
+          </div>
+        </nav>
+      </div>
+    </section>
+
+    <script>
+      // The current application coordinates were pre-registered in a B2C tenant.
+      var appConfig = {
+        b2cScopes: ["https://fabrikamb2c.onmicrosoft.com/helloapi/demo.read"],
+        webApi: "https://fabrikamb2chello.azurewebsites.net/hello"
+      }
+    </script>
+
+    <script>
+      "use strict"
+
+      // configuration to initialize msal
+      var msalConfig = {
+        auth: {
+          clientId: "e760cab2-b9a1-4c0d-86fb-ff7084abd902", //This is your client ID
+          authority:
+            "https://fabrikamb2c.b2clogin.com/fabrikamb2c.onmicrosoft.com/b2c_1_susi", //This is your tenant info
+          validateAuthority: false
+        },
+        cache: {
+          cacheLocation: "localStorage",
+          storeAuthStateInCookie: true
+        }
+      }
+
+      var clientApplication = new Msal.UserAgentApplication(msalConfig)
+
+      // Register a call back for redirect flow
+      // myMSALObj.handleRedirectCallback(authRedirectCallback);
+
+      function login() {
+        var loginRequest = {
+          scopes: appConfig.b2cScopes
+        }
+
+        clientApplication
+          .loginPopup(loginRequest)
+          .then(function(loginResponse) {
+            var tokenRequest = {
+              scopes: appConfig.b2cScopes
+            }
+
+            clientApplication
+              .acquireTokenSilent(tokenRequest)
+              .then(function(tokenResponse) {
+                updateUI()
+              })
+              .catch(function(error) {
+                clientApplication
+                  .acquireTokenPopup(tokenRequest)
+                  .then(function(tokenResponse) {
+                    updateUI()
+                  })
+                  .catch(function(error) {
+                    logMessage("Error acquiring the popup:\n" + error)
+                  })
+              })
+          })
+          .catch(function(error) {
+            logMessage("Error during login:\n" + error)
+          })
+      }
+
+      function updateUI() {
+        var userName = clientApplication.getAccount().name
+        console.log(clientApplication.getAccount())
+        logMessage("User '" + userName + "' logged-in")
+        var authButton = document.getElementById("auth")
+        authButton.innerHTML = "logout"
+        authButton.setAttribute("onclick", "logout();")
+        var label = document.getElementById("label")
+        label.innerText = "Hello " + userName
+        var callWebApiButton = document.getElementById("callApiButton")
+        callWebApiButton.removeAttribute("class", "is-hidden")
+        callWebApiButton.setAttribute("class", "button is-info")
+        var signUpBtn = document.getElementById("signup")
+        signUpBtn.setAttribute("class", "is-hidden")
+      }
+
+      function callApi() {
+        var tokenRequest = {
+          scopes: appConfig.b2cScopes
+        }
+        clientApplication
+          .acquireTokenSilent(tokenRequest)
+          .then(function(tokenResponse) {
+            console.log(tokenResponse, "tokenResponse")
+            callApiWithAccessToken(tokenResponse.accessToken)
+          })
+          .catch(function(error) {
+            clientApplication
+              .acquireTokenPopup(tokenRequest)
+              .then(function(tokenResponse) {
+                callApiWithAccessToken(tokenResponse.accessToken)
+              })
+              .catch(function(error) {
+                logMessage(
+                  "Error acquiring the access token to call the Web api:\n" +
+                    error
+                )
+              })
+          })
+      }
+
+      function callApiWithAccessToken(accessToken) {
+        // Call the Web API with the AccessToken
+        $.ajax({
+          type: "GET",
+          url: appConfig.webApi,
+          headers: {
+            Authorization: "Bearer " + accessToken
+          }
+        })
+          .done(function(data) {
+            logMessage("Web APi returned:\n" + JSON.stringify(data))
+          })
+          .fail(function(jqXHR, textStatus) {
+            logMessage("Error calling the Web api:\n" + textStatus)
+          })
+      }
+
+      function logout() {
+        // Removes all sessions, need to call AAD endpoint to do full logout
+        clientApplication.logout()
+      }
+
+      function logMessage(s) {
+        document.body
+          .querySelector(".response")
+          .appendChild(document.createTextNode("\n" + s))
+      }
+    </script>
+  </body>
+</html>
